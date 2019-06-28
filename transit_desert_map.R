@@ -117,6 +117,7 @@ plot(hospital_osm["osm_id"])
 #Part 2: Finding mobility deserts
 #First creating buffers around the hospitals, transit lines, bixi stations, bike lanes:
 
+tmap_mode("view")
 #Hospital:
 hospital_buffer <- st_buffer(st_transform(hospital_osm,crs = 2959), dist = 500)
 
