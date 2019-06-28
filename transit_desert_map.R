@@ -8,6 +8,7 @@ library(sf)
 library(osmdata)
 library(tmap)
 library(gbfs)
+library(mapedit)
 
 #Part 1: Getting data. List of Required data:
 # - Montreal administrative boundaries
@@ -27,35 +28,36 @@ download.file(url, destfile = "mtllimits.geojson")
 mtl <- read_sf("mtllimits.geojson")
 
 #Examine
-glimpse(mtl)
-plot(mtl["TYPE"])
+#glimpse(mtl)
+#plot(mtl["TYPE"])
 
 #Getting the outline and its bounding box so as to use it to clip the rest of the data:
 mtl_outline <- mtl %>% st_union()
 mtl_bbox <- st_bbox(mtl_outline)
 
 #2.1 Montreal's Buildings from Open data montreal:
-#url <- "http://donnees.ville.montreal.qc.ca/dataset/fab160ae-c81d-46f8-8f92-4a01c10d4390/resource/fc1a0cc8-9460-4555-903f-800372c4db24/download/empreinte_batiment_wgs84.geojson"
+url <- "http://donnees.ville.montreal.qc.ca/dataset/fab160ae-c81d-46f8-8f92-4a01c10d4390/resource/fc1a0cc8-9460-4555-903f-800372c4db24/download/empreinte_batiment_wgs84.geojson"
 
 #Use url to download the file from online
-#download.file(url, destfile = "mtlbuildings.geojson")
+download.file(url, destfile = "mtlbuildings.geojson")
 
 #Read the file into r using sf.
-#build_mtl <- read_sf("mtlbuildings.geojson")
+build_mtl <- read_sf("mtlbuildings.geojson")
 
 #Examine
-#build_mtl
-#plot(build_mtl["producteur"])
+build_mtl
+plot(build_mtl["producteur"])
 
 #2 Montreal's buildings from open street map (Montreal city data seems weird)
 build_osm <- opq(bbox = "Montreal") %>% 
-  add_osm_feature(key = "building", value = "yes") %>% 
+  add_osm_feature(key = "building", value = "residential") %>% 
   osmdata_sf()
 
 #Selecting only the polygon data from this dataset, clipping it with Montreal bbox and plotting 
 #to explore:
 build_osm <- build_osm$osm_polygons %>% 
-  st_intersection(mtl_outline)
+  st_intersection(mtl_outline) %>% 
+  select(osm_id,geometry)
 glimpse(build_osm)
 plot(build_osm["osm_id"])
 
@@ -69,11 +71,12 @@ download.file(url, destfile = "mtltransit.zip")
 unzip("mtltransit.zip")
 
 #Read the file into r using sf.
-transit_mtl <- read_sf("stm_lignes_sig.shp")
+transit_mtl <- read_sf("stm_lignes_sig.shp") %>% 
+  select(route_id,geometry)
 
 #Examine
-glimpse(transit_mtl)
-plot(transit_mtl["headsign"])
+#glimpse(transit_mtl)
+#plot(transit_mtl["headsign"])
 
 #4. Montreal Bike Lanes 
 url <- "http://donnees.ville.montreal.qc.ca/dataset/5ea29f40-1b5b-4f34-85b3-7c67088ff536/resource/0dc6612a-be66-406b-b2d9-59c9e1c65ebf/download/reseau_cyclable_2018_c.geojson"
@@ -82,11 +85,12 @@ url <- "http://donnees.ville.montreal.qc.ca/dataset/5ea29f40-1b5b-4f34-85b3-7c67
 download.file(url, destfile = "mtlbikelanes.geojson")
 
 #Read the file into r using sf.
-bikelanes_mtl <- read_sf("mtlbikelanes.geojson")
+bikelanes_mtl <- read_sf("mtlbikelanes.geojson") %>% 
+  select(ID,geometry)
 
 #Examine
-glimpse(bikelanes_mtl)
-plot(bikelanes_mtl["NOM_ARR_VI"])
+#glimpse(bikelanes_mtl)
+#plot(bikelanes_mtl["NOM_ARR_VI"])
 
 #5. Montreal bixi stations (using the gbfs package):
 #Saving station information in a file
@@ -96,11 +100,13 @@ get_station_information("Montreal", directory = getwd(), file = "bixi.rds")
 bixi <- readRDS("bixi.rds")
 
 #Converting to sf:
-bixi <- bixi %>% st_as_sf(coords = c("lon","lat"), crs = 4326)
+bixi <- bixi %>% 
+  st_as_sf(coords = c("lon","lat"), crs = 4326) %>% 
+  select(station_id,geometry)
 
 #Exploring:
-glimpse(bixi)
-plot(bixi["name"]) #plot for bixis
+#glimpse(bixi)
+#plot(bixi["name"]) #plot for bixis
 
 #6. Montreal Hospitals:
 hospital_osm <- opq(bbox = "Montreal") %>% 
@@ -110,9 +116,10 @@ hospital_osm <- opq(bbox = "Montreal") %>%
 #Selecting only the polygon data from this dataset, clipping it with Montreal bbox and plotting 
 #to explore:
 hospital_osm <- hospital_osm$osm_polygons %>% 
-  st_intersection(mtl_outline)
-glimpse(hospital_osm)
-plot(hospital_osm["osm_id"])
+  st_intersection(mtl_outline) %>% 
+  select(osm_id,name,geometry)
+#glimpse(hospital_osm)
+#plot(hospital_osm["osm_id"])
 
 #Part 2: Finding mobility deserts
 #First creating buffers around the hospitals, transit lines, bixi stations, bike lanes:
@@ -123,23 +130,31 @@ hospital_buffer <- st_buffer(st_transform(hospital_osm,crs = 2959), dist = 500)
 
 #Transit lines:
 transit_buffer <- st_buffer(st_transform(transit_mtl,crs = 2959), dist = 100)
+transit_union <- transit_buffer %>% st_union()
 
 #Bixi Buffer 
-st_crs(bixi)
 bixi_buffer <- st_buffer(st_transform(bixi, crs = 2959), 100)
-tm_shape(bixi_buffer) + tm_bubbles(alpha = 0.1) + tm_shape(bixi) + tm_dots() 
 
 #Bike Lane Buffer
-st_crs(bikelanes_mtl)
 bikelanes_buffer <- st_buffer(st_transform(bikelanes_mtl, crs = 2959), 100)
-tm_shape(bikelanes_buffer) + tm_borders(alpha = 0.1) + tm_shape(bikelanes_mtl) + tm_lines()
+bikelanes_union <- bikelanes_buffer %>% st_union()
 
-#CLipping buildings that fall outside of all these boundaries:
+#Finding buildings that are in mobility deserts:
 mobility_deserts <- build_osm %>% 
   st_transform(crs = 2959) %>% 
-  st_difference(hospital_buffer) %>% 
+  st_difference(transit_union) %>% 
+  st_difference(bikelanes_union) %>% 
   st_difference(bixi_buffer) %>% 
-  st_difference(bike) %>% 
-  st_difference(transit_buffer)
+  st_difference(hospital_buffer) %>% 
+  st_difference(crs = 4326)
+
+mobility_access <- build_osm %>% 
+  st_transform(crs = 2959) %>% 
+  st_intersection(transit_union) %>% 
+  st_intersection(bikelanes_union) %>% 
+  st_intersection(bixi_buffer) %>% 
+  st_intersection(hospital_buffer) %>% 
   st_transform(crs = 4326)
 
+
+  
