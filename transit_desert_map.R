@@ -9,7 +9,14 @@ library(osmdata)
 library(tmap)
 library(gbfs)
 
-#Part 1: Getting data
+#Part 1: Getting data. List of Required data:
+# - Montreal administrative boundaries
+# - Montreal buildings 
+# - Montreal transit network (bus and subway)
+# - Montreal Bike Lanes 
+# - Montreal Bixi Stations
+# - Montreal Hospitals
+
 #1. Montreal's administrative boundaries:
 url <- "http://donnees.ville.montreal.qc.ca/dataset/00bd85eb-23aa-4669-8f1b-ba9a000e3dd8/resource/e9b0f927-8f75-458c-8fda-b5da65cc8b73/download/limadmin.json"
 
@@ -40,7 +47,7 @@ mtl_bbox <- st_bbox(mtl_outline)
 #build_mtl
 #plot(build_mtl["producteur"])
 
-#2 Montreal's residential buildings from open street map (Montreal city data seems weird)
+#2 Montreal's buildings from open street map (Montreal city data seems weird)
 build_osm <- opq(bbox = "Montreal") %>% 
   add_osm_feature(key = "building", value = "yes") %>% 
   osmdata_sf()
@@ -106,6 +113,22 @@ hospital_osm <- hospital_osm$osm_polygons %>%
   st_intersection(mtl_outline)
 glimpse(hospital_osm)
 plot(hospital_osm["osm_id"])
+
 #Part 2: Finding mobility deserts
-#First creating buffers around the hospitals, transit lines, biki stations, bike lanes:
+#First creating buffers around the hospitals, transit lines, bixi stations, bike lanes:
+
+#Hospital:
+hospital_buffer <- st_buffer(st_transform(hospital_osm,crs = 2959), dist = 500)
+
+#Transit lines:
+transit_buffer <- st_buffer(st_transform(transit_mtl,crs = 2959), dist = 100)
+
+#CLipping buildings that fall outside of all these boundaries:
+mobility_deserts <- build_osm %>% 
+  st_transform(crs = 2959) %>% 
+  st_difference(hospital_buffer) %>% 
+  st_difference(bixi_buffer) %>% 
+  st_difference(bike) %>% 
+  st_difference(transit_buffer)
+  st_transform(crs = 4326)
 
