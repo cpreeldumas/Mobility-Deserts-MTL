@@ -93,7 +93,7 @@ bixi <- bixi %>% st_as_sf(coords = c("lon","lat"), crs = 4326)
 
 #Exploring:
 glimpse(bixi)
-plot(bixi["name"]) #I don't see a comment
+plot(bixi["name"]) #plot for bixis
 
 #6. Montreal Hospitals:
 hospital_osm <- opq(bbox = "Montreal") %>% 
