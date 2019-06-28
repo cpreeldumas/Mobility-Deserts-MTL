@@ -106,6 +106,18 @@ hospital_osm <- hospital_osm$osm_polygons %>%
   st_intersection(mtl_outline)
 glimpse(hospital_osm)
 plot(hospital_osm["osm_id"])
+
 #Part 2: Finding mobility deserts
-#First creating buffers around the hospitals, transit lines, biki stations, bike lanes:
+#First creating buffers around the hospitals, transit lines, bixi stations, bike lanes:
+
+#Bixi Buffer 
+st_crs(bixi)
+bixi_buffer <- st_buffer(st_transform(bixi, crs = 2959), 100)
+tm_shape(bixi_buffer) + tm_bubbles(alpha = 0.1) + tm_shape(bixi) + tm_dots() 
+
+#Bike Lane Buffer
+st_crs(bikelanes_mtl)
+bikelanes_buffer <- st_buffer(st_transform(bikelanes_mtl, crs = 2959), 100)
+tm_shape(bikelanes_buffer) + tm_borders(alpha = 0.1) + tm_shape(bikelanes_mtl) + tm_lines()
+
 
