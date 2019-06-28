@@ -123,6 +123,16 @@ hospital_buffer <- st_buffer(st_transform(hospital_osm,crs = 2959), dist = 500)
 #Transit lines:
 transit_buffer <- st_buffer(st_transform(transit_mtl,crs = 2959), dist = 100)
 
+#Bixi Buffer 
+st_crs(bixi)
+bixi_buffer <- st_buffer(st_transform(bixi, crs = 2959), 100)
+tm_shape(bixi_buffer) + tm_bubbles(alpha = 0.1) + tm_shape(bixi) + tm_dots() 
+
+#Bike Lane Buffer
+st_crs(bikelanes_mtl)
+bikelanes_buffer <- st_buffer(st_transform(bikelanes_mtl, crs = 2959), 100)
+tm_shape(bikelanes_buffer) + tm_borders(alpha = 0.1) + tm_shape(bikelanes_mtl) + tm_lines()
+
 #CLipping buildings that fall outside of all these boundaries:
 mobility_deserts <- build_osm %>% 
   st_transform(crs = 2959) %>% 
